@@ -19,8 +19,8 @@ use std::u8;
 
 const PI_2: f32 = PI * 2.0;
 const N: usize = 256;
-const N_N: usize = N * N;
-const CEILING: i32 = (N as i32) - 1;
+const NN: usize = N * N;
+const Z: f32 = 0.05;
 
 #[derive(Clone, Copy)]
 struct Vec2 {
@@ -30,7 +30,7 @@ struct Vec2 {
 
 struct Noise2dContext {
     gradients: [Vec2; N],
-    permutations: [i32; N],
+    permutations: [usize; N],
 }
 
 fn lerp(a: f32, b: f32, weight: f32) -> f32 {
@@ -60,9 +60,9 @@ impl Noise2dContext {
         for x in gradients.iter_mut() {
             *x = random_gradient(&mut rng)
         }
-        let mut permutations: [i32; N] = [0; N];
+        let mut permutations: [usize; N] = [0; N];
         for (i, x) in permutations.iter_mut().enumerate() {
-            *x = i as i32;
+            *x = i;
         }
         permutations.shuffle(&mut rng);
         Noise2dContext {
@@ -71,10 +71,9 @@ impl Noise2dContext {
         }
     }
 
-    fn get_gradient(&self, x: i32, y: i32) -> Vec2 {
-        let index: i32 = self.permutations[(x & CEILING) as usize]
-            + self.permutations[(y & CEILING) as usize];
-        self.gradients[(index & CEILING) as usize]
+    fn get_gradient(&self, x: usize, y: usize) -> Vec2 {
+        self.gradients
+            [(self.permutations[x % N] + self.permutations[y % N]) % N]
     }
 
     fn get_gradients(&self, x: f32, y: f32) -> ([Vec2; 4], [Vec2; 4]) {
@@ -82,10 +81,10 @@ impl Noise2dContext {
         let y_0f: f32 = y.floor();
         let x_1f: f32 = x_0f + 1.0;
         let y_1f: f32 = y_0f + 1.0;
-        let x_0: i32 = x_0f as i32;
-        let y_0: i32 = y_0f as i32;
-        let x_1: i32 = x_1f as i32;
-        let y_1: i32 = y_1f as i32;
+        let x_0: usize = x_0f as usize;
+        let y_0: usize = y_0f as usize;
+        let x_1: usize = x_1f as usize;
+        let y_1: usize = y_1f as usize;
         (
             [
                 self.get_gradient(x_0, y_0),
@@ -118,17 +117,16 @@ impl Noise2dContext {
 
 fn main() {
     let wd: String = env::var("WD").unwrap();
-    let path: &Path = Path::new(&wd);
-    let pixels: [u8; N_N] = {
+    let filepath: &Path = &Path::new(&wd).join("out").join("main.png");
+    let pixels: [u8; NN] = {
         let context: Noise2dContext = Noise2dContext::new();
-        let mut buffer: [f32; N_N] = [0.0; N_N];
+        let mut buffer: [f32; NN] = [0.0; NN];
         let mut max: f32 = f32::MIN;
         let mut min: f32 = f32::MAX;
         for y in 0..N {
             for x in 0..N {
-                let weight: f32 =
-                    context.get_noise((x as f32) * 0.1, (y as f32) * 0.1);
-                let value: f32 = (weight * 0.5) + 0.5;
+                let value: f32 =
+                    context.get_noise((x as f32) * Z, (y as f32) * Z);
                 if value < min {
                     min = value;
                 }
@@ -140,18 +138,12 @@ fn main() {
         }
         let norm: f32 = max - min;
         let scale: f32 = u8::max_value() as f32;
-        let mut pixels: [u8; N_N] = [0; N_N];
+        let mut pixels: [u8; NN] = [0; NN];
         for (i, p) in pixels.iter_mut().enumerate() {
             *p = (((buffer[i] - min) / norm) * scale) as u8;
         }
         pixels
     };
-    image::save_buffer(
-        path.join("out").join("rust.png"),
-        &pixels,
-        N as u32,
-        N as u32,
-        image::Gray(8),
-    )
-    .unwrap();
+    image::save_buffer(filepath, &pixels, N as u32, N as u32, image::Gray(8))
+        .unwrap();
 }
