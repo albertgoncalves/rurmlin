@@ -1,0 +1,9 @@
+*
+!.gitignore
+!*.nix
+!shell
+!.shellhook
+!dev/
+!src/
+!*.toml
+!*.rs

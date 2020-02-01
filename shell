@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+
+if [ "$(uname -s)" = "Darwin" ]; then
+    nix-shell ./shell.nix --attr darwin
+else
+    nix-shell ./shell.nix --attr linux
+fi
