@@ -125,15 +125,16 @@ fn main() {
         let mut min: f32 = f32::MAX;
         for y in 0..N {
             for x in 0..N {
-                let value: f32 =
-                    context.get_noise((x as f32) * Z, (y as f32) * Z);
+                let index: usize = (y * N) + x;
+                let value: f32 = buffer[index]
+                    + context.get_noise((x as f32) * Z, (y as f32) * Z);
+                buffer[index] = value;
                 if value < min {
                     min = value;
                 }
                 if max < value {
                     max = value;
                 }
-                buffer[(y * N) + x] += value;
             }
         }
         let norm: f32 = max - min;
