@@ -42,7 +42,7 @@ fn smooth(x: f32) -> f32 {
     x * x * (3.0 - (2.0 * x))
 }
 
-fn random_gradient(rng: &mut ThreadRng) -> Vec2 {
+fn get_random_gradient(rng: &mut ThreadRng) -> Vec2 {
     let theta: f32 = PI_2 * rng.gen::<f32>();
     Vec2 {
         x: theta.cos(),
@@ -50,77 +50,80 @@ fn random_gradient(rng: &mut ThreadRng) -> Vec2 {
     }
 }
 
-fn gradient(origin: Vec2, gradient: Vec2, point: Vec2) -> f32 {
+fn get_gradient(origin: Vec2, gradient: Vec2, point: Vec2) -> f32 {
     ((point.x - origin.x) * gradient.x) + ((point.y - origin.y) * gradient.y)
 }
 
-impl Noise2dContext {
-    fn new() -> Noise2dContext {
-        let mut rng: ThreadRng = rand::thread_rng();
-        let mut gradients: [Vec2; N] = [Vec2 { x: 0.0, y: 0.0 }; N];
-        for x in gradients.iter_mut() {
-            *x = random_gradient(&mut rng)
-        }
-        let mut permutations: [usize; N] = [0; N];
-        for (i, x) in permutations.iter_mut().enumerate() {
-            *x = i;
-        }
-        permutations.shuffle(&mut rng);
-        Noise2dContext {
-            gradients,
-            permutations,
-        }
+fn init_context() -> Noise2dContext {
+    let mut rng: ThreadRng = rand::thread_rng();
+    let mut gradients: [Vec2; N] = [Vec2 { x: 0.0, y: 0.0 }; N];
+    for x in gradients.iter_mut() {
+        *x = get_random_gradient(&mut rng)
     }
+    let mut permutations: [usize; N] = [0; N];
+    for (i, x) in permutations.iter_mut().enumerate() {
+        *x = i;
+    }
+    permutations.shuffle(&mut rng);
+    Noise2dContext {
+        gradients,
+        permutations,
+    }
+}
 
-    fn get_gradient(&self, x: usize, y: usize) -> Vec2 {
-        self.gradients
-            [(self.permutations[x % N] + self.permutations[y % N]) % N]
-    }
+macro_rules! get_gradient_index {
+    ($context:expr, $x:expr, $y:expr $(,)?) => {
+        ($context.permutations[$x % N] + $context.permutations[$y % N]) % N
+    };
+}
 
-    fn get_gradients(&self, x: f32, y: f32) -> ([Vec2; 4], [Vec2; 4]) {
-        let x_0f: f32 = x.floor();
-        let y_0f: f32 = y.floor();
-        let x_1f: f32 = x_0f + 1.0;
-        let y_1f: f32 = y_0f + 1.0;
-        let x_0: usize = x_0f as usize;
-        let y_0: usize = y_0f as usize;
-        let x_1: usize = x_1f as usize;
-        let y_1: usize = y_1f as usize;
-        (
-            [
-                self.get_gradient(x_0, y_0),
-                self.get_gradient(x_1, y_0),
-                self.get_gradient(x_0, y_1),
-                self.get_gradient(x_1, y_1),
-            ],
-            [
-                Vec2 { x: x_0f, y: y_0f },
-                Vec2 { x: x_1f, y: y_0f },
-                Vec2 { x: x_0f, y: y_1f },
-                Vec2 { x: x_1f, y: y_1f },
-            ],
-        )
-    }
+fn get_gradients(
+    context: &Noise2dContext,
+    x: f32,
+    y: f32,
+) -> ([Vec2; 4], [Vec2; 4]) {
+    let x_0f: f32 = x.floor();
+    let y_0f: f32 = y.floor();
+    let x_1f: f32 = x_0f + 1.0;
+    let y_1f: f32 = y_0f + 1.0;
+    let x_0: usize = x_0f as usize;
+    let y_0: usize = y_0f as usize;
+    let x_1: usize = x_1f as usize;
+    let y_1: usize = y_1f as usize;
+    (
+        [
+            context.gradients[get_gradient_index!(context, x_0, y_0)],
+            context.gradients[get_gradient_index!(context, x_1, y_0)],
+            context.gradients[get_gradient_index!(context, x_0, y_1)],
+            context.gradients[get_gradient_index!(context, x_1, y_1)],
+        ],
+        [
+            Vec2 { x: x_0f, y: y_0f },
+            Vec2 { x: x_1f, y: y_0f },
+            Vec2 { x: x_0f, y: y_1f },
+            Vec2 { x: x_1f, y: y_1f },
+        ],
+    )
+}
 
-    fn get_noise(&self, x: f32, y: f32) -> f32 {
-        let point: Vec2 = Vec2 { x, y };
-        let (gradients, origins): ([Vec2; 4], [Vec2; 4]) =
-            self.get_gradients(x, y);
-        let w_0: f32 = gradient(origins[0], gradients[0], point);
-        let w_1: f32 = gradient(origins[1], gradients[1], point);
-        let w_2: f32 = gradient(origins[2], gradients[2], point);
-        let w_3: f32 = gradient(origins[3], gradients[3], point);
-        let smooth_x: f32 = smooth(x - origins[0].x);
-        let smooth_y: f32 = smooth(y - origins[0].y);
-        lerp(lerp(w_0, w_1, smooth_x), lerp(w_2, w_3, smooth_x), smooth_y)
-    }
+fn get_noise(context: &Noise2dContext, x: f32, y: f32) -> f32 {
+    let point: Vec2 = Vec2 { x, y };
+    let (gradients, origins): ([Vec2; 4], [Vec2; 4]) =
+        get_gradients(context, x, y);
+    let w_0: f32 = get_gradient(origins[0], gradients[0], point);
+    let w_1: f32 = get_gradient(origins[1], gradients[1], point);
+    let w_2: f32 = get_gradient(origins[2], gradients[2], point);
+    let w_3: f32 = get_gradient(origins[3], gradients[3], point);
+    let smooth_x: f32 = smooth(x - origins[0].x);
+    let smooth_y: f32 = smooth(y - origins[0].y);
+    lerp(lerp(w_0, w_1, smooth_x), lerp(w_2, w_3, smooth_x), smooth_y)
 }
 
 fn main() {
     let wd: String = env::var("WD").unwrap();
     let filepath: &Path = &Path::new(&wd).join("out").join("main.png");
     let pixels: Vec<u8> = {
-        let context: Noise2dContext = Noise2dContext::new();
+        let context: Noise2dContext = init_context();
         let mut buffer: Vec<f32> = vec![0.0; NN];
         let mut max: f32 = f32::MIN;
         let mut min: f32 = f32::MAX;
@@ -132,7 +135,8 @@ fn main() {
                     let octave: f32 = Z * t;
                     let decay: f32 = W / (t * t);
                     buffer[index] += decay
-                        * context.get_noise(
+                        * get_noise(
+                            &context,
                             (x as f32) * octave,
                             (y as f32) * octave,
                         );
