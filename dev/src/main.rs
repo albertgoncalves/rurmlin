@@ -1,7 +1,6 @@
 #![allow(
     clippy::cast_lossless,
     clippy::cast_possible_truncation,
-    clippy::cast_possible_wrap,
     clippy::cast_precision_loss,
     clippy::cast_sign_loss
 )]
@@ -18,9 +17,11 @@ use std::path::Path;
 use std::u8;
 
 const PI_2: f32 = PI * 2.0;
-const N: usize = 256;
+const N: usize = 2048;
 const NN: usize = N * N;
-const Z: f32 = 0.05;
+const Z: f32 = 1.0 / 250.0;
+const W: f32 = 2.5;
+const T: usize = 5;
 
 #[derive(Clone, Copy)]
 struct Vec2 {
@@ -118,17 +119,25 @@ impl Noise2dContext {
 fn main() {
     let wd: String = env::var("WD").unwrap();
     let filepath: &Path = &Path::new(&wd).join("out").join("main.png");
-    let pixels: [u8; NN] = {
+    let pixels: Vec<u8> = {
         let context: Noise2dContext = Noise2dContext::new();
-        let mut buffer: [f32; NN] = [0.0; NN];
+        let mut buffer: Vec<f32> = vec![0.0; NN];
         let mut max: f32 = f32::MIN;
         let mut min: f32 = f32::MAX;
         for y in 0..N {
             for x in 0..N {
                 let index: usize = (y * N) + x;
-                let value: f32 = buffer[index]
-                    + context.get_noise((x as f32) * Z, (y as f32) * Z);
-                buffer[index] = value;
+                for i in 1..T {
+                    let t: f32 = i as f32;
+                    let octave: f32 = Z * t;
+                    let decay: f32 = W / (t * t);
+                    buffer[index] += decay
+                        * context.get_noise(
+                            (x as f32) * octave,
+                            (y as f32) * octave,
+                        );
+                }
+                let value: f32 = buffer[index];
                 if value < min {
                     min = value;
                 }
@@ -139,7 +148,7 @@ fn main() {
         }
         let norm: f32 = max - min;
         let scale: f32 = u8::max_value() as f32;
-        let mut pixels: [u8; NN] = [0; NN];
+        let mut pixels: Vec<u8> = vec![0; NN];
         for (i, p) in pixels.iter_mut().enumerate() {
             *p = (((buffer[i] - min) / norm) * scale) as u8;
         }
