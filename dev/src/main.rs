@@ -71,10 +71,8 @@ fn init_context() -> Noise2dContext {
     }
 }
 
-macro_rules! get_gradient_index {
-    ($context:expr, $x:expr, $y:expr $(,)?) => {
-        ($context.permutations[$x % N] + $context.permutations[$y % N]) % N
-    };
+fn get_gradient_index(context: &Noise2dContext, x: usize, y: usize) -> usize {
+    (context.permutations[x % N] + context.permutations[y % N]) % N
 }
 
 fn get_gradients(
@@ -92,10 +90,10 @@ fn get_gradients(
     let y_1: usize = y_1f as usize;
     (
         [
-            context.gradients[get_gradient_index!(context, x_0, y_0)],
-            context.gradients[get_gradient_index!(context, x_1, y_0)],
-            context.gradients[get_gradient_index!(context, x_0, y_1)],
-            context.gradients[get_gradient_index!(context, x_1, y_1)],
+            context.gradients[get_gradient_index(context, x_0, y_0)],
+            context.gradients[get_gradient_index(context, x_1, y_0)],
+            context.gradients[get_gradient_index(context, x_0, y_1)],
+            context.gradients[get_gradient_index(context, x_1, y_1)],
         ],
         [
             Vec2 { x: x_0f, y: y_0f },
