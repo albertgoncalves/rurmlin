@@ -4,6 +4,8 @@ if [ "$(uname -s)" = "Darwin" ]; then
     alias ls="ls --color=auto"
     alias ll="ls -l"
 else
+    alias buildr="cargo build --target x86_64-unknown-linux-musl"
+    alias runr="cargo run --target x86_64-unknown-linux-musl"
     alias open="sxiv"
 fi
 
@@ -33,6 +35,4 @@ rustup update
 export RUSTFLAGS="-C target-cpu=native"
 
 alias rustfmt="rustfmt -v"
-alias buildr="cargo build --target x86_64-unknown-linux-musl"
-alias runr="cargo run --target x86_64-unknown-linux-musl"
 alias clippy="cargo clippy --all-targets -- -D warnings -W clippy::pedantic"
