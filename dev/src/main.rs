@@ -34,24 +34,12 @@ struct Noise2dContext {
     permutations: [usize; N],
 }
 
-fn lerp(a: f32, b: f32, weight: f32) -> f32 {
-    a + (weight * (b - a))
-}
-
-fn smooth(x: f32) -> f32 {
-    x * x * (3.0 - (2.0 * x))
-}
-
 fn get_random_gradient(rng: &mut ThreadRng) -> Vec2 {
     let theta: f32 = PI_2 * rng.gen::<f32>();
     Vec2 {
         x: theta.cos(),
         y: theta.sin(),
     }
-}
-
-fn get_gradient(origin: Vec2, gradient: Vec2, point: Vec2) -> f32 {
-    ((point.x - origin.x) * gradient.x) + ((point.y - origin.y) * gradient.y)
 }
 
 fn init_context() -> Noise2dContext {
@@ -71,15 +59,24 @@ fn init_context() -> Noise2dContext {
     }
 }
 
+fn get_gradient(origin: Vec2, gradient: Vec2, point: Vec2) -> f32 {
+    ((point.x - origin.x) * gradient.x) + ((point.y - origin.y) * gradient.y)
+}
+
 fn get_gradient_index(context: &Noise2dContext, x: usize, y: usize) -> usize {
     (context.permutations[x % N] + context.permutations[y % N]) % N
 }
 
-fn get_gradients(
-    context: &Noise2dContext,
-    x: f32,
-    y: f32,
-) -> ([Vec2; 4], [Vec2; 4]) {
+fn smooth(x: f32) -> f32 {
+    x * x * (3.0 - (2.0 * x))
+}
+
+fn lerp(a: f32, b: f32, weight: f32) -> f32 {
+    a + (weight * (b - a))
+}
+
+fn get_noise(context: &Noise2dContext, x: f32, y: f32) -> f32 {
+    let point: Vec2 = Vec2 { x, y };
     let x_0f: f32 = x.floor();
     let y_0f: f32 = y.floor();
     let x_1f: f32 = x_0f + 1.0;
@@ -88,32 +85,29 @@ fn get_gradients(
     let y_0: usize = y_0f as usize;
     let x_1: usize = x_1f as usize;
     let y_1: usize = y_1f as usize;
-    (
-        [
-            context.gradients[get_gradient_index(context, x_0, y_0)],
-            context.gradients[get_gradient_index(context, x_1, y_0)],
-            context.gradients[get_gradient_index(context, x_0, y_1)],
-            context.gradients[get_gradient_index(context, x_1, y_1)],
-        ],
-        [
-            Vec2 { x: x_0f, y: y_0f },
-            Vec2 { x: x_1f, y: y_0f },
-            Vec2 { x: x_0f, y: y_1f },
-            Vec2 { x: x_1f, y: y_1f },
-        ],
-    )
-}
-
-fn get_noise(context: &Noise2dContext, x: f32, y: f32) -> f32 {
-    let point: Vec2 = Vec2 { x, y };
-    let (gradients, origins): ([Vec2; 4], [Vec2; 4]) =
-        get_gradients(context, x, y);
-    let w_0: f32 = get_gradient(origins[0], gradients[0], point);
-    let w_1: f32 = get_gradient(origins[1], gradients[1], point);
-    let w_2: f32 = get_gradient(origins[2], gradients[2], point);
-    let w_3: f32 = get_gradient(origins[3], gradients[3], point);
-    let smooth_x: f32 = smooth(x - origins[0].x);
-    let smooth_y: f32 = smooth(y - origins[0].y);
+    let origin_0: Vec2 = Vec2 { x: x_0f, y: y_0f };
+    let w_0: f32 = get_gradient(
+        origin_0,
+        context.gradients[get_gradient_index(context, x_0, y_0)],
+        point,
+    );
+    let w_1: f32 = get_gradient(
+        Vec2 { x: x_1f, y: y_0f },
+        context.gradients[get_gradient_index(context, x_1, y_0)],
+        point,
+    );
+    let w_2: f32 = get_gradient(
+        Vec2 { x: x_0f, y: y_1f },
+        context.gradients[get_gradient_index(context, x_0, y_1)],
+        point,
+    );
+    let w_3: f32 = get_gradient(
+        Vec2 { x: x_1f, y: y_1f },
+        context.gradients[get_gradient_index(context, x_1, y_1)],
+        point,
+    );
+    let smooth_x: f32 = smooth(x - origin_0.x);
+    let smooth_y: f32 = smooth(y - origin_0.y);
     lerp(lerp(w_0, w_1, smooth_x), lerp(w_2, w_3, smooth_x), smooth_y)
 }
 
@@ -126,8 +120,9 @@ fn main() {
         let mut max: f32 = f32::MIN;
         let mut min: f32 = f32::MAX;
         for y in 0..N {
+            let y_n: usize = y * N;
             for x in 0..N {
-                let index: usize = (y * N) + x;
+                let index: usize = y_n + x;
                 for i in 1..T {
                     let t: f32 = i as f32;
                     let octave: f32 = Z * t;
@@ -148,11 +143,10 @@ fn main() {
                 }
             }
         }
-        let norm: f32 = max - min;
         let scale: f32 = u8::max_value() as f32;
         let mut pixels: Vec<u8> = vec![0; NN];
         for (i, p) in pixels.iter_mut().enumerate() {
-            *p = (((buffer[i] - min) / norm) * scale) as u8;
+            *p = (((buffer[i] - min) / (max - min)) * scale) as u8;
         }
         pixels
     };
