@@ -5,7 +5,8 @@
     clippy::cast_sign_loss
 )]
 
-/* NOTE: Based on `https://github.com/nsf/pnoise/blob/d957b0adee46f6362f008c0cda6f8184a4333c76/test.rs`. */
+/* NOTE: Based on `https://github.com/nsf/pnoise/blob/d957b0adee46f6362f008c0cda6f8184a4333c76/test.rs`.
+ */
 
 use rand::rngs::ThreadRng;
 use rand::seq::SliceRandom;
