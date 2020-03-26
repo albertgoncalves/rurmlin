@@ -123,19 +123,17 @@ fn main() {
         for y in 0..N {
             let y_n: usize = y * N;
             for x in 0..N {
-                let index: usize = y_n + x;
+                let mut value: f32 = 0.0;
+                let x_f: f32 = x as f32;
+                let y_f: f32 = y as f32;
                 for i in 1..T {
                     let t: f32 = i as f32;
                     let octave: f32 = Z * t;
                     let decay: f32 = W / (t * t);
-                    buffer[index] += decay
-                        * get_noise(
-                            &context,
-                            (x as f32) * octave,
-                            (y as f32) * octave,
-                        );
+                    value += decay
+                        * get_noise(&context, x_f * octave, y_f * octave);
                 }
-                let value: f32 = buffer[index];
+                buffer[y_n + x] = value;
                 if value < min {
                     min = value;
                 }
@@ -146,8 +144,9 @@ fn main() {
         }
         let scale: f32 = u8::max_value() as f32;
         let mut pixels: Vec<u8> = vec![0; NN];
+        let delta: f32 = max - min;
         for (i, p) in pixels.iter_mut().enumerate() {
-            *p = (((buffer[i] - min) / (max - min)) * scale) as u8;
+            *p = (((buffer[i] - min) / delta) * scale) as u8;
         }
         pixels
     };
