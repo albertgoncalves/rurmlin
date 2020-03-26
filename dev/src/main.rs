@@ -20,9 +20,7 @@ use std::u8;
 const PI_2: f32 = PI * 2.0;
 const N: usize = 2048;
 const NN: usize = N * N;
-const Z: f32 = 1.0 / 250.0;
-const W: f32 = 2.5;
-const T: usize = 5;
+const RESOLUTION: f32 = 512.0;
 
 #[derive(Clone, Copy)]
 struct Vec2 {
@@ -69,7 +67,7 @@ fn get_gradient_index(context: &Noise2dContext, x: usize, y: usize) -> usize {
 }
 
 fn smooth(x: f32) -> f32 {
-    x * x * (3.0 - (2.0 * x))
+    x * x * x * (x * ((x * 6.0) - 15.0) + 10.0)
 }
 
 fn lerp(a: f32, b: f32, weight: f32) -> f32 {
@@ -86,9 +84,8 @@ fn get_noise(context: &Noise2dContext, x: f32, y: f32) -> f32 {
     let y_0: usize = y_0f as usize;
     let x_1: usize = x_1f as usize;
     let y_1: usize = y_1f as usize;
-    let origin_0: Vec2 = Vec2 { x: x_0f, y: y_0f };
     let w_0: f32 = get_gradient(
-        origin_0,
+        Vec2 { x: x_0f, y: y_0f },
         context.gradients[get_gradient_index(context, x_0, y_0)],
         point,
     );
@@ -107,8 +104,8 @@ fn get_noise(context: &Noise2dContext, x: f32, y: f32) -> f32 {
         context.gradients[get_gradient_index(context, x_1, y_1)],
         point,
     );
-    let smooth_x: f32 = smooth(x - origin_0.x);
-    let smooth_y: f32 = smooth(y - origin_0.y);
+    let smooth_x: f32 = smooth(x - x_0f);
+    let smooth_y: f32 = smooth(y - y_0f);
     lerp(lerp(w_0, w_1, smooth_x), lerp(w_2, w_3, smooth_x), smooth_y)
 }
 
@@ -123,16 +120,11 @@ fn main() {
         for y in 0..N {
             let y_n: usize = y * N;
             for x in 0..N {
-                let mut value: f32 = 0.0;
-                let x_f: f32 = x as f32;
-                let y_f: f32 = y as f32;
-                for i in 1..T {
-                    let t: f32 = i as f32;
-                    let octave: f32 = Z * t;
-                    let decay: f32 = W / (t * t);
-                    value += decay
-                        * get_noise(&context, x_f * octave, y_f * octave);
-                }
+                let value: f32 = get_noise(
+                    &context,
+                    (x as f32) / RESOLUTION,
+                    (y as f32) / RESOLUTION,
+                );
                 buffer[y_n + x] = value;
                 if value < min {
                     min = value;
