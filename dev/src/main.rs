@@ -67,7 +67,7 @@ fn get_gradient_index(context: &Noise2dContext, x: usize, y: usize) -> usize {
 }
 
 fn smooth(x: f32) -> f32 {
-    x * x * x * (x * ((x * 6.0) - 15.0) + 10.0)
+    x * x * x * ((x * ((x * 6.0) - 15.0)) + 10.0)
 }
 
 fn lerp(a: f32, b: f32, weight: f32) -> f32 {
