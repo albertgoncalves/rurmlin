@@ -20,7 +20,7 @@ use std::u8;
 const PI_2: f32 = PI * 2.0;
 const N: usize = 2048;
 const NN: usize = N * N;
-const RESOLUTION: f32 = 512.0;
+const RESOLUTION: f32 = 256.0;
 
 #[derive(Clone, Copy)]
 struct Vec2 {
