@@ -118,14 +118,12 @@ fn main() {
         let mut max: f32 = f32::MIN;
         let mut min: f32 = f32::MAX;
         for y in 0..N {
-            let y_n: usize = y * N;
+            let y_noise: f32 = (y as f32) / RESOLUTION;
+            let y_index: usize = y * N;
             for x in 0..N {
-                let value: f32 = get_noise(
-                    &context,
-                    (x as f32) / RESOLUTION,
-                    (y as f32) / RESOLUTION,
-                );
-                buffer[y_n + x] = value;
+                let value: f32 =
+                    get_noise(&context, (x as f32) / RESOLUTION, y_noise);
+                buffer[y_index + x] = value;
                 if value < min {
                     min = value;
                 }
